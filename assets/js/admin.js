@@ -37,23 +37,32 @@
 							<span class="dashicons dashicons-migrate"></span>
 							RestoreWP
 						</h1>
-						<p>Migration & Backup for WordPress</p>
+						<p>Migration & Backup for WordPress - Simple, Secure, Reliable</p>
 					</div>
 
 					<div class="restorewp-tabs">
-						<button class="restorewp-tab ${activeTab === 'export' ? 'active' : ''}" data-tab="export">${restoreWP.strings.export}</button>
-						<button class="restorewp-tab ${activeTab === 'import' ? 'active' : ''}" data-tab="import">${restoreWP.strings.import}</button>
-						<button class="restorewp-tab ${activeTab === 'backups' ? 'active' : ''}" data-tab="backups">${restoreWP.strings.backups}</button>
+						<button class="restorewp-tab ${activeTab === 'export' ? 'active' : ''}" data-tab="export">
+							<span class="dashicons dashicons-download"></span>
+							${restoreWP.strings.export}
+						</button>
+						<button class="restorewp-tab ${activeTab === 'import' ? 'active' : ''}" data-tab="import">
+							<span class="dashicons dashicons-upload"></span>
+							${restoreWP.strings.import}
+						</button>
+						<button class="restorewp-tab ${activeTab === 'backups' ? 'active' : ''}" data-tab="backups">
+							<span class="dashicons dashicons-database"></span>
+							${restoreWP.strings.backups}
+						</button>
 					</div>
 
 					<div class="restorewp-content">
-						<div id="restorewp-export-content" class="restorewp-tab-content ${activeTab === 'export' ? 'active' : ''}">
+						<div id="restorewp-export-content" class="restorewp-tab-content ${activeTab === 'export' ? '' : 'restorewp-hidden'}">
 							${this.getExportContent()}
 						</div>
-						<div id="restorewp-import-content" class="restorewp-tab-content ${activeTab === 'import' ? 'active' : ''}">
+						<div id="restorewp-import-content" class="restorewp-tab-content ${activeTab === 'import' ? '' : 'restorewp-hidden'}">
 							${this.getImportContent()}
 						</div>
-						<div id="restorewp-backups-content" class="restorewp-tab-content ${activeTab === 'backups' ? 'active' : ''}">
+						<div id="restorewp-backups-content" class="restorewp-tab-content ${activeTab === 'backups' ? '' : 'restorewp-hidden'}">
 							${this.getBackupsContent()}
 						</div>
 					</div>
@@ -62,53 +71,87 @@
 
 			container.html(html);
 			this.bindTabEvents();
-			this.loadBackups();
+			if (activeTab === 'backups') {
+				this.loadBackups();
+			}
 		},
 
 		bindTabEvents: function() {
 			$(document).on('click', '.restorewp-tab', function() {
 				const tab = $(this).data('tab');
 				
+				// Update active tab
 				$('.restorewp-tab').removeClass('active');
 				$(this).addClass('active');
 				
-				$('.restorewp-tab-content').removeClass('active');
-				$('#restorewp-' + tab + '-content').addClass('active');
+				// Hide all tab content
+				$('.restorewp-tab-content').addClass('restorewp-hidden');
+				
+				// Show selected tab content
+				$('#restorewp-' + tab + '-content').removeClass('restorewp-hidden');
+				
+				// Load backups if switching to backups tab
+				if (tab === 'backups') {
+					RestoreWPAdmin.loadBackups();
+				}
 			});
 		},
 
 		getExportContent: function() {
 			return `
 				<div class="restorewp-card">
-					<h3>${restoreWP.strings.exportSite}</h3>
-					<div class="restorewp-export-options">
-						<div class="restorewp-form-group">
-							<label>
-								<input type="checkbox" name="include_database" checked> 
-								${__('Database', 'restorewp')}
-							</label>
-						</div>
-						<div class="restorewp-form-group">
-							<label>
-								<input type="checkbox" name="include_uploads" checked> 
-								${__('Media Files', 'restorewp')}
-							</label>
-						</div>
-						<div class="restorewp-form-group">
-							<label>
-								<input type="checkbox" name="include_themes" checked> 
-								${__('Themes', 'restorewp')}
-							</label>
-						</div>
-						<div class="restorewp-form-group">
-							<label>
-								<input type="checkbox" name="include_plugins" checked> 
-								${__('Plugins', 'restorewp')}
-							</label>
+					<div class="restorewp-flex restorewp-items-center restorewp-justify-between" style="margin-bottom: 20px;">
+						<h3 style="margin: 0;">Create Site Backup</h3>
+						<span class="dashicons dashicons-download" style="font-size: 24px; color: #0073aa;"></span>
+					</div>
+					
+					<div class="restorewp-notice info">
+						<strong>Export your complete WordPress site</strong><br>
+						This will create a downloadable backup containing all your selected content.
+					</div>
+
+					<div class="restorewp-option-group">
+						<h4>What to include in your backup:</h4>
+						<div class="restorewp-checkbox-list">
+							<div class="restorewp-checkbox-item">
+								<input type="checkbox" name="include_database" id="include_database" checked>
+								<label for="include_database">
+									<strong>Database</strong><br>
+									<small>Posts, pages, settings, users</small>
+								</label>
+							</div>
+							<div class="restorewp-checkbox-item">
+								<input type="checkbox" name="include_uploads" id="include_uploads" checked>
+								<label for="include_uploads">
+									<strong>Media Files</strong><br>
+									<small>Images, documents, uploads</small>
+								</label>
+							</div>
+							<div class="restorewp-checkbox-item">
+								<input type="checkbox" name="include_themes" id="include_themes" checked>
+								<label for="include_themes">
+									<strong>Themes</strong><br>
+									<small>All installed themes</small>
+								</label>
+							</div>
+							<div class="restorewp-checkbox-item">
+								<input type="checkbox" name="include_plugins" id="include_plugins" checked>
+								<label for="include_plugins">
+									<strong>Plugins</strong><br>
+									<small>All installed plugins</small>
+								</label>
+							</div>
 						</div>
 					</div>
+
 					<div id="restorewp-export-status"></div>
-					<button class="restorewp-button restorewp-export-btn">${restoreWP.strings.startExport}</button>
+					
+					<div style="text-align: center; margin-top: 30px;">
+						<button class="restorewp-button restorewp-export-btn" style="padding: 15px 30px; font-size: 16px;">
+							<span class="dashicons dashicons-download" style="margin-right: 8px;"></span>
+							${restoreWP.strings.startExport}
+						</button>
+					</div>
 				</div>
 			`;
 		},
@@ -116,26 +159,50 @@
 		getImportContent: function() {
 			return `
 				<div class="restorewp-card">
-					<h3>${restoreWP.strings.importSite}</h3>
+					<div class="restorewp-flex restorewp-items-center restorewp-justify-between" style="margin-bottom: 20px;">
+						<h3 style="margin: 0;">Import Site Backup</h3>
+						<span class="dashicons dashicons-upload" style="font-size: 24px; color: #0073aa;"></span>
+					</div>
+					
+					<div class="restorewp-notice warning">
+						<strong>Important:</strong> This will replace your current site content with the backup data.<br>
+						Your domain URL will be preserved automatically.
+					</div>
+
 					<div class="restorewp-upload-area">
 						<div class="restorewp-upload-icon">
 							<span class="dashicons dashicons-upload"></span>
 						</div>
 						<div class="restorewp-upload-text">${restoreWP.strings.selectFile}</div>
-						<div class="restorewp-upload-hint">${__('Maximum file size: 2GB', 'restorewp')}</div>
+						<div class="restorewp-upload-hint">Maximum file size: 2GB • Supported format: ZIP</div>
 						<input type="file" id="restorewp-file-input" accept=".zip" style="display: none;">
-						<button class="restorewp-button" onclick="document.getElementById('restorewp-file-input').click()">${restoreWP.strings.selectFile}</button>
+						<div style="margin-top: 20px;">
+							<button class="restorewp-button secondary" onclick="document.getElementById('restorewp-file-input').click()">
+								<span class="dashicons dashicons-media-default" style="margin-right: 8px;"></span>
+								${restoreWP.strings.selectFile}
+							</button>
+						</div>
 					</div>
-					<div class="restorewp-import-options" style="margin-top: 20px;">
-						<div class="restorewp-form-group">
-							<label>
-								<input type="checkbox" name="create_backup" checked> 
-								${__('Create backup before import', 'restorewp')}
+					
+					<div class="restorewp-option-group" style="margin-top: 25px;">
+						<h4>Import Options:</h4>
+						<div class="restorewp-checkbox-item">
+							<input type="checkbox" name="create_backup" id="create_backup" checked>
+							<label for="create_backup">
+								<strong>Create safety backup before import</strong><br>
+								<small>Recommended: Backup your current site before importing</small>
 							</label>
 						</div>
 					</div>
+
 					<div id="restorewp-import-status"></div>
-					<button class="restorewp-button restorewp-import-btn" disabled>${restoreWP.strings.startImport}</button>
+					
+					<div style="text-align: center; margin-top: 30px;">
+						<button class="restorewp-button restorewp-import-btn" disabled style="padding: 15px 30px; font-size: 16px;">
+							<span class="dashicons dashicons-upload" style="margin-right: 8px;"></span>
+							${restoreWP.strings.startImport}
+						</button>
+					</div>
 				</div>
 			`;
 		},
@@ -143,14 +210,18 @@
 		getBackupsContent: function() {
 			return `
 				<div class="restorewp-card">
-					<div class="restorewp-flex restorewp-items-center restorewp-justify-between">
-						<h3>${restoreWP.strings.manageBackups}</h3>
-						<button class="restorewp-button restorewp-create-backup-btn">${__('Create Backup', 'restorewp')}</button>
+					<div class="restorewp-flex restorewp-items-center restorewp-justify-between" style="margin-bottom: 20px;">
+						<div>
+							<h3 style="margin: 0;">Manage Backups</h3>
+							<p style="margin: 5px 0 0 0; color: #646970;">View, download, and manage your site backups</p>
+						</div>
+						<span class="dashicons dashicons-database" style="font-size: 24px; color: #0073aa;"></span>
 					</div>
+					
 					<div id="restorewp-backups-list">
-						<div class="restorewp-text-center" style="padding: 40px;">
-							<div class="restorewp-loading"></div>
-							<p>${__('Loading backups...', 'restorewp')}</p>
+						<div class="restorewp-text-center" style="padding: 60px 20px;">
+							<div class="restorewp-loading" style="margin: 0 auto 20px auto;"></div>
+							<p style="color: #646970; font-size: 16px;">${__('Loading backups...', 'restorewp')}</p>
 						</div>
 					</div>
 				</div>
@@ -424,28 +495,47 @@
 				},
 				success: function(response) {
 					if (response.success && response.data.length > 0) {
-						let html = '<ul class="restorewp-backup-list">';
+						let html = '<div class="restorewp-backup-list">';
 						response.data.forEach(function(backup) {
 							html += `
-								<li class="restorewp-backup-item">
+								<div class="restorewp-backup-item">
+									<div class="restorewp-backup-icon">
+										<span class="dashicons dashicons-archive"></span>
+									</div>
 									<div class="restorewp-backup-info">
 										<div class="restorewp-backup-name">${backup.filename}</div>
-										<div class="restorewp-backup-meta">${backup.size_human} • ${backup.created_human}</div>
+										<div class="restorewp-backup-meta">
+											<span class="restorewp-backup-size">${backup.size_human}</span>
+											<span class="restorewp-backup-date">${backup.created_human}</span>
+										</div>
 									</div>
 									<div class="restorewp-backup-actions">
-										<a href="${backup.download_url}" class="restorewp-button secondary">${restoreWP.strings.download}</a>
-										<button class="restorewp-button danger restorewp-backup-delete" data-filename="${backup.filename}">${restoreWP.strings.delete}</button>
+										<a href="${backup.download_url}" class="restorewp-button secondary">
+											<span class="dashicons dashicons-download"></span>
+											${restoreWP.strings.download}
+										</a>
+										<button class="restorewp-button danger restorewp-backup-delete" data-filename="${backup.filename}">
+											<span class="dashicons dashicons-trash"></span>
+											${restoreWP.strings.delete}
+										</button>
 									</div>
-								</li>
+								</div>
 							`;
 						});
-						html += '</ul>';
+						html += '</div>';
 						container.html(html);
 					} else {
 						container.html(`
-							<div class="restorewp-text-center" style="padding: 40px;">
-								<span class="dashicons dashicons-database" style="font-size: 48px; color: #a7aaad;"></span>
-								<p>${__('No backups found. Create your first backup!', 'restorewp')}</p>
+							<div class="restorewp-empty-state">
+								<div class="restorewp-empty-icon">
+									<span class="dashicons dashicons-database"></span>
+								</div>
+								<h4>No backups found</h4>
+								<p>Create your first backup using the Export tab to get started.</p>
+								<button class="restorewp-button" onclick="$('.restorewp-tab[data-tab=\\"export\\"]').click()">
+									<span class="dashicons dashicons-download"></span>
+									Create Backup
+								</button>
 							</div>
 						`);
 					}
