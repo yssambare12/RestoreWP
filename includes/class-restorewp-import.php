@@ -20,26 +20,10 @@ class RestoreWP_Import {
 	private $import_id;
 
 	/**
-	 * Process ID for background processing.
-	 *
-	 * @var string
-	 */
-	private $process_id;
-
-	/**
 	 * Constructor.
 	 */
 	public function __construct() {
 		$this->import_id = uniqid( 'import_' );
-	}
-
-	/**
-	 * Set process ID for background processing.
-	 *
-	 * @param string $process_id Process ID.
-	 */
-	public function set_process_id( $process_id ) {
-		$this->process_id = $process_id;
 	}
 
 	/**
@@ -193,12 +177,7 @@ class RestoreWP_Import {
 	private function import_database( $extract_path, $options ) {
 		global $wpdb;
 
-		$this->update_status( 'database', __( 'Importing database...', 'restorewp' ), 30 );
-
-		// Check for cancellation
-		if ( $this->is_cancelled() ) {
-			throw new Exception( __( 'Import cancelled by user', 'restorewp' ) );
-		}
+		$this->update_status( 'database', __( 'Importing database...', 'restorewp' ) );
 
 		$sql_file = $extract_path . '/' . RESTOREWP_DATABASE_FILE;
 		$sql_content = file_get_contents( $sql_file );
@@ -209,34 +188,17 @@ class RestoreWP_Import {
 
 		// Perform URL replacement if specified.
 		if ( ! empty( $options['old_url'] ) && ! empty( $options['new_url'] ) ) {
-			$this->update_status( 'database', __( 'Replacing URLs in database...', 'restorewp' ), 35 );
 			$sql_content = $this->replace_urls( $sql_content, $options['old_url'], $options['new_url'] );
 		}
 
 		// Execute SQL.
 		$queries = $this->split_sql_file( $sql_content );
-		$total_queries = count( $queries );
-		$current_query = 0;
-
 		foreach ( $queries as $query ) {
-			// Check for cancellation periodically
-			if ( $current_query % 50 === 0 && $this->is_cancelled() ) {
-				throw new Exception( __( 'Import cancelled by user', 'restorewp' ) );
-			}
-
 			if ( ! empty( trim( $query ) ) ) {
 				$wpdb->query( $query );
 				if ( $wpdb->last_error ) {
 					error_log( 'RestoreWP SQL Error: ' . $wpdb->last_error );
 				}
-			}
-
-			$current_query++;
-			
-			// Update progress every 100 queries
-			if ( $current_query % 100 === 0 ) {
-				$progress = 35 + ( $current_query / $total_queries ) * 25; // 35-60% for database execution
-				$this->update_status( 'database', sprintf( __( 'Importing database... (%d/%d queries)', 'restorewp' ), $current_query, $total_queries ), $progress );
 			}
 		}
 	}
@@ -527,10 +489,9 @@ class RestoreWP_Import {
 	 *
 	 * @param string $status Status.
 	 * @param string $message Message.
-	 * @param int    $progress Progress percentage.
 	 * @param array  $data Additional data.
 	 */
-	private function update_status( $status, $message, $progress = null, $data = array() ) {
+	private function update_status( $status, $message, $data = array() ) {
 		$status_data = array(
 			'status'  => $status,
 			'message' => $message,
@@ -538,26 +499,6 @@ class RestoreWP_Import {
 			'time'    => time(),
 		);
 
-		// Update background process status if available
-		if ( $this->process_id ) {
-			RestoreWP_Background_Process::update_status( $this->process_id, $status, $message, $progress, $data );
-		} else {
-			// Fallback to old method
-			set_transient( 'restorewp_status_' . get_option( RESTOREWP_SECRET_KEY_OPTION ), $status_data, 300 );
-		}
-	}
-
-	/**
-	 * Check if import is cancelled.
-	 *
-	 * @return bool
-	 */
-	private function is_cancelled() {
-		if ( ! $this->process_id ) {
-			return false;
-		}
-
-		$process_data = RestoreWP_Background_Process::get_status( $this->process_id );
-		return $process_data && $process_data['status'] === 'cancelled';
+		set_transient( 'restorewp_status_' . get_option( RESTOREWP_SECRET_KEY_OPTION ), $status_data, 300 );
 	}
 }

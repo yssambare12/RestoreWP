@@ -12,9 +12,6 @@
 	};
 
 	const RestoreWPAdmin = {
-		currentProcessId: null,
-		statusInterval: null,
-
 		init: function() {
 			this.bindEvents();
 			this.createTabs();
@@ -108,11 +105,6 @@
 						<span class="dashicons dashicons-download" style="font-size: 24px; color: #0073aa;"></span>
 					</div>
 					
-					<div class="restorewp-background-notice">
-						<span class="dashicons dashicons-info"></span>
-						<strong>Background Processing:</strong> Export runs in the background without affecting your site's frontend performance. You can cancel the process at any time.
-					</div>
-					
 					<div class="restorewp-notice info">
 						<strong>Export your complete WordPress site</strong><br>
 						This will create a downloadable backup containing all your selected content.
@@ -170,11 +162,6 @@
 					<div class="restorewp-flex restorewp-items-center restorewp-justify-between" style="margin-bottom: 20px;">
 						<h3 style="margin: 0;">Import Site Backup</h3>
 						<span class="dashicons dashicons-upload" style="font-size: 24px; color: #0073aa;"></span>
-					</div>
-					
-					<div class="restorewp-background-notice">
-						<span class="dashicons dashicons-info"></span>
-						<strong>Background Processing:</strong> Import runs in the background without affecting your site's frontend performance. You can cancel the process at any time.
 					</div>
 					
 					<div class="restorewp-notice warning">
@@ -249,8 +236,8 @@
 			
 			button.prop('disabled', true).text(restoreWP.strings.processing);
 			
-			// Show progress popup with cancel button
-			RestoreWPAdmin.showProgressPopup('Initializing export...', true);
+			// Show progress popup
+			RestoreWPAdmin.showProgressPopup('Initializing export...');
 			
 			const options = {
 				include_database: $('input[name="include_database"]').is(':checked'),
@@ -258,6 +245,20 @@
 				include_themes: $('input[name="include_themes"]').is(':checked'),
 				include_plugins: $('input[name="include_plugins"]').is(':checked'),
 			};
+
+			// Simulate progress updates
+			let progress = 0;
+			const progressInterval = setInterval(() => {
+				progress += Math.random() * 15;
+				if (progress > 90) progress = 90;
+				
+				let status = 'Preparing export...';
+				if (progress > 20) status = 'Exporting database...';
+				if (progress > 40) status = 'Exporting files...';
+				if (progress > 70) status = 'Creating archive...';
+				
+				RestoreWPAdmin.updateProgress(Math.round(progress), status);
+			}, 500);
 
 			$.ajax({
 				url: restoreWP.ajaxUrl,
@@ -268,33 +269,30 @@
 					...options
 				},
 				success: function(response) {
+					clearInterval(progressInterval);
 					if (response.success) {
-						RestoreWPAdmin.currentProcessId = response.data.process_id;
-						RestoreWPAdmin.startStatusPolling();
+						RestoreWPAdmin.updateProgress(100, 'Export completed!');
+						setTimeout(() => {
+							RestoreWPAdmin.showDownloadButton(response.data.download_url || '#');
+							statusDiv.html('<div class="restorewp-status success">' + restoreWP.strings.completed + '</div>');
+						}, 1000);
 					} else {
 						RestoreWPAdmin.hideProgressPopup();
 						statusDiv.html('<div class="restorewp-status error">' + (response.data.message || restoreWP.strings.failed) + '</div>');
-						button.prop('disabled', false).text(restoreWP.strings.startExport);
 					}
 				},
 				error: function() {
+					clearInterval(progressInterval);
 					RestoreWPAdmin.hideProgressPopup();
 					statusDiv.html('<div class="restorewp-status error">' + restoreWP.strings.failed + '</div>');
+				},
+				complete: function() {
 					button.prop('disabled', false).text(restoreWP.strings.startExport);
 				}
 			});
 		},
 
-		showProgressPopup: function(status, showCancel = false) {
-			const cancelButton = showCancel ? `
-				<div style="margin-top: 20px;">
-					<button class="restorewp-cancel-btn" onclick="RestoreWPAdmin.cancelProcess()">
-						<span class="dashicons dashicons-no"></span>
-						Cancel Process
-					</button>
-				</div>
-			` : '';
-
+		showProgressPopup: function(status) {
 			const popup = `
 				<div id="restorewp-progress-popup" class="restorewp-popup-overlay">
 					<div class="restorewp-popup">
@@ -307,104 +305,10 @@
 							<div class="restorewp-progress-text">0%</div>
 						</div>
 						<div class="restorewp-progress-status">${status}</div>
-						${cancelButton}
 					</div>
 				</div>
 			`;
 			$('body').append(popup);
-		},
-
-		startStatusPolling: function() {
-			if (RestoreWPAdmin.statusInterval) {
-				clearInterval(RestoreWPAdmin.statusInterval);
-			}
-
-			RestoreWPAdmin.statusInterval = setInterval(() => {
-				if (!RestoreWPAdmin.currentProcessId) {
-					return;
-				}
-
-				$.ajax({
-					url: restoreWP.ajaxUrl,
-					type: 'POST',
-					data: {
-						action: 'restorewp_status',
-						nonce: restoreWP.nonce,
-						process_id: RestoreWPAdmin.currentProcessId
-					},
-					success: function(response) {
-						if (response.success) {
-							const status = response.data;
-							RestoreWPAdmin.updateProgress(status.progress || 0, status.message);
-
-							// Check if process is complete
-							if (status.status === 'completed') {
-								clearInterval(RestoreWPAdmin.statusInterval);
-								RestoreWPAdmin.handleProcessComplete(status);
-							} else if (status.status === 'error' || status.status === 'cancelled') {
-								clearInterval(RestoreWPAdmin.statusInterval);
-								RestoreWPAdmin.handleProcessError(status);
-							}
-						}
-					},
-					error: function() {
-						// Continue polling on error, might be temporary
-					}
-				});
-			}, 1000);
-		},
-
-		cancelProcess: function() {
-			if (!RestoreWPAdmin.currentProcessId) {
-				return;
-			}
-
-			if (!confirm('Are you sure you want to cancel this process? This action cannot be undone.')) {
-				return;
-			}
-
-			$.ajax({
-				url: restoreWP.ajaxUrl,
-				type: 'POST',
-				data: {
-					action: 'restorewp_cancel',
-					nonce: restoreWP.nonce,
-					process_id: RestoreWPAdmin.currentProcessId
-				},
-				success: function(response) {
-					if (response.success) {
-						RestoreWPAdmin.updateProgress(0, 'Process cancelled');
-						setTimeout(() => {
-							RestoreWPAdmin.hideProgressPopup();
-							RestoreWPAdmin.resetButtons();
-						}, 1500);
-					}
-				}
-			});
-		},
-
-		handleProcessComplete: function(status) {
-			if (status.data && status.data.download_url) {
-				// Export completed
-				RestoreWPAdmin.showDownloadButton(status.data.download_url);
-			} else {
-				// Import completed
-				RestoreWPAdmin.showImportSuccess();
-			}
-			RestoreWPAdmin.currentProcessId = null;
-		},
-
-		handleProcessError: function(status) {
-			RestoreWPAdmin.hideProgressPopup();
-			const statusDiv = status.type === 'export' ? $('#restorewp-export-status') : $('#restorewp-import-status');
-			statusDiv.html('<div class="restorewp-status error">' + status.message + '</div>');
-			RestoreWPAdmin.resetButtons();
-			RestoreWPAdmin.currentProcessId = null;
-		},
-
-		resetButtons: function() {
-			$('.restorewp-export-btn').prop('disabled', false).text(restoreWP.strings.startExport);
-			$('.restorewp-import-btn').prop('disabled', false).text(restoreWP.strings.startImport);
 		},
 
 		updateProgress: function(percentage, status) {
@@ -526,8 +430,25 @@
 				create_backup: $('input[name="create_backup"]').is(':checked'),
 			};
 
-			// Show progress popup for import with cancel button
-			RestoreWPAdmin.showProgressPopup('Initializing import...', true);
+			// Show progress popup for import
+			RestoreWPAdmin.showProgressPopup('Initializing import...');
+			
+			// Simulate progress updates during import
+			let progress = 0;
+			const progressInterval = setInterval(() => {
+				progress += Math.random() * 10;
+				if (progress > 90) progress = 90;
+				
+				let status = 'Preparing import...';
+				if (progress > 15) status = 'Extracting backup file...';
+				if (progress > 30) status = 'Validating backup...';
+				if (progress > 45) status = 'Creating rollback backup...';
+				if (progress > 55) status = 'Updating URLs for current domain...';
+				if (progress > 70) status = 'Importing database...';
+				if (progress > 85) status = 'Importing files...';
+				
+				RestoreWPAdmin.updateProgress(Math.round(progress), status);
+			}, 800);
 
 			$.ajax({
 				url: restoreWP.ajaxUrl,
@@ -538,18 +459,25 @@
 					...options
 				},
 				success: function(response) {
+					clearInterval(progressInterval);
 					if (response.success) {
-						RestoreWPAdmin.currentProcessId = response.data.process_id;
-						RestoreWPAdmin.startStatusPolling();
+						RestoreWPAdmin.updateProgress(100, 'Import completed successfully!');
+						setTimeout(() => {
+							RestoreWPAdmin.showImportSuccess();
+							statusDiv.html('<div class="restorewp-status success">' + restoreWP.strings.completed + '</div>');
+							RestoreWPAdmin.loadBackups(); // Refresh backups list
+						}, 1000);
 					} else {
 						RestoreWPAdmin.hideProgressPopup();
 						statusDiv.html('<div class="restorewp-status error">' + (response.data.message || restoreWP.strings.failed) + '</div>');
-						button.prop('disabled', false).text(restoreWP.strings.startImport);
 					}
 				},
 				error: function() {
+					clearInterval(progressInterval);
 					RestoreWPAdmin.hideProgressPopup();
 					statusDiv.html('<div class="restorewp-status error">' + restoreWP.strings.failed + '</div>');
+				},
+				complete: function() {
 					button.prop('disabled', false).text(restoreWP.strings.startImport);
 				}
 			});

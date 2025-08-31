@@ -107,7 +107,6 @@ class RestoreWP {
 		include_once RESTOREWP_INCLUDES_PATH . 'class-restorewp-admin.php';
 		include_once RESTOREWP_INCLUDES_PATH . 'class-restorewp-ajax.php';
 		include_once RESTOREWP_INCLUDES_PATH . 'class-restorewp-rest-api.php';
-		include_once RESTOREWP_INCLUDES_PATH . 'class-restorewp-background-process.php';
 		include_once RESTOREWP_INCLUDES_PATH . 'class-restorewp-export.php';
 		include_once RESTOREWP_INCLUDES_PATH . 'class-restorewp-import.php';
 		include_once RESTOREWP_INCLUDES_PATH . 'class-restorewp-backup.php';
