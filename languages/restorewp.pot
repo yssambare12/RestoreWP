@@ -1,0 +1,48 @@
+# Copyright (C) 2025 RestoreWP Team
+# This file is distributed under the GPL v3 or later.
+msgid ""
+msgstr ""
+"Project-Id-Version: RestoreWP 1.0.0\n"
+"Report-Msgid-Bugs-To: https://github.com/restorewp/restorewp/issues\n"
+"POT-Creation-Date: 2025-01-01 00:00:00+00:00\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"PO-Revision-Date: 2025-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"X-Generator: WP-CLI 2.4.0\n"
+
+#: includes/class-restorewp-admin.php
+msgid "RestoreWP"
+msgstr ""
+
+#: includes/class-restorewp-admin.php
+msgid "Export"
+msgstr ""
+
+#: includes/class-restorewp-admin.php
+msgid "Import"
+msgstr ""
+
+#: includes/class-restorewp-admin.php
+msgid "Backups"
+msgstr ""
+
+#: includes/class-restorewp-export.php
+msgid "Starting export..."
+msgstr ""
+
+#: includes/class-restorewp-export.php
+msgid "Export completed successfully."
+msgstr ""
+
+#: includes/class-restorewp-import.php
+msgid "Starting import..."
+msgstr ""
+
+#: includes/class-restorewp-import.php
+msgid "Import completed successfully."
+msgstr ""
