@@ -20,10 +20,26 @@ class RestoreWP_Export {
 	private $export_id;
 
 	/**
+	 * Process ID for background processing.
+	 *
+	 * @var string
+	 */
+	private $process_id;
+
+	/**
 	 * Constructor.
 	 */
 	public function __construct() {
 		$this->export_id = uniqid( 'export_' );
+	}
+
+	/**
+	 * Set process ID for background processing.
+	 *
+	 * @param string $process_id Process ID.
+	 */
+	public function set_process_id( $process_id ) {
+		$this->process_id = $process_id;
 	}
 
 	/**
@@ -98,7 +114,12 @@ class RestoreWP_Export {
 	private function export_database( $zip, $options ) {
 		global $wpdb;
 
-		$this->update_status( 'database', __( 'Exporting database...', 'restorewp' ) );
+		$this->update_status( 'database', __( 'Exporting database...', 'restorewp' ), 10 );
+
+		// Check for cancellation
+		if ( $this->is_cancelled() ) {
+			throw new Exception( __( 'Export cancelled by user', 'restorewp' ) );
+		}
 
 		// Get all tables.
 		$tables = $wpdb->get_col( "SHOW TABLES" );
@@ -114,8 +135,19 @@ class RestoreWP_Export {
 		$sql_content .= "SET SQL_MODE = \"NO_AUTO_VALUE_ON_ZERO\";\n";
 		$sql_content .= "SET time_zone = \"+00:00\";\n\n";
 
+		$table_count = count( $tables );
+		$current_table = 0;
+
 		foreach ( $tables as $table ) {
-			$this->update_status( 'database', sprintf( __( 'Exporting table: %s', 'restorewp' ), $table ) );
+			// Check for cancellation
+			if ( $this->is_cancelled() ) {
+				throw new Exception( __( 'Export cancelled by user', 'restorewp' ) );
+			}
+
+			$current_table++;
+			$progress = 10 + ( $current_table / $table_count ) * 30; // 10-40% for database
+			
+			$this->update_status( 'database', sprintf( __( 'Exporting table: %s (%d/%d)', 'restorewp' ), $table, $current_table, $table_count ), $progress );
 
 			// Get table structure.
 			$create_table = $wpdb->get_row( "SHOW CREATE TABLE `{$table}`", ARRAY_A );
@@ -149,20 +181,39 @@ class RestoreWP_Export {
 	 */
 	private function export_wp_content( $zip, $options ) {
 		$wp_content_path = WP_CONTENT_DIR;
+		$current_progress = 40; // Start after database export
 
 		if ( $options['include_uploads'] ) {
-			$this->update_status( 'uploads', __( 'Exporting uploads...', 'restorewp' ) );
+			// Check for cancellation
+			if ( $this->is_cancelled() ) {
+				throw new Exception( __( 'Export cancelled by user', 'restorewp' ) );
+			}
+
+			$this->update_status( 'uploads', __( 'Exporting uploads...', 'restorewp' ), $current_progress );
 			$this->add_directory_to_zip( $zip, $wp_content_path . '/uploads', 'wp-content/uploads' );
+			$current_progress += 20;
 		}
 
 		if ( $options['include_themes'] ) {
-			$this->update_status( 'themes', __( 'Exporting themes...', 'restorewp' ) );
+			// Check for cancellation
+			if ( $this->is_cancelled() ) {
+				throw new Exception( __( 'Export cancelled by user', 'restorewp' ) );
+			}
+
+			$this->update_status( 'themes', __( 'Exporting themes...', 'restorewp' ), $current_progress );
 			$this->add_directory_to_zip( $zip, $wp_content_path . '/themes', 'wp-content/themes', $options['exclude_themes'] );
+			$current_progress += 15;
 		}
 
 		if ( $options['include_plugins'] ) {
-			$this->update_status( 'plugins', __( 'Exporting plugins...', 'restorewp' ) );
+			// Check for cancellation
+			if ( $this->is_cancelled() ) {
+				throw new Exception( __( 'Export cancelled by user', 'restorewp' ) );
+			}
+
+			$this->update_status( 'plugins', __( 'Exporting plugins...', 'restorewp' ), $current_progress );
 			$this->add_directory_to_zip( $zip, $wp_content_path . '/plugins', 'wp-content/plugins', $options['exclude_plugins'] );
+			$current_progress += 15;
 		}
 	}
 
@@ -275,9 +326,10 @@ class RestoreWP_Export {
 	 *
 	 * @param string $status Status.
 	 * @param string $message Message.
+	 * @param int    $progress Progress percentage.
 	 * @param array  $data Additional data.
 	 */
-	private function update_status( $status, $message, $data = array() ) {
+	private function update_status( $status, $message, $progress = null, $data = array() ) {
 		$status_data = array(
 			'status'  => $status,
 			'message' => $message,
@@ -285,6 +337,26 @@ class RestoreWP_Export {
 			'time'    => time(),
 		);
 
-		set_transient( 'restorewp_status_' . get_option( RESTOREWP_SECRET_KEY_OPTION ), $status_data, 300 );
+		// Update background process status if available
+		if ( $this->process_id ) {
+			RestoreWP_Background_Process::update_status( $this->process_id, $status, $message, $progress, $data );
+		} else {
+			// Fallback to old method
+			set_transient( 'restorewp_status_' . get_option( RESTOREWP_SECRET_KEY_OPTION ), $status_data, 300 );
+		}
+	}
+
+	/**
+	 * Check if export is cancelled.
+	 *
+	 * @return bool
+	 */
+	private function is_cancelled() {
+		if ( ! $this->process_id ) {
+			return false;
+		}
+
+		$process_data = RestoreWP_Background_Process::get_status( $this->process_id );
+		return $process_data && $process_data['status'] === 'cancelled';
 	}
 }

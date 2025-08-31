@@ -43,8 +43,12 @@ class RestoreWP_Admin {
 		add_action( 'wp_ajax_restorewp_import', array( $this, 'ajax_import' ) );
 		add_action( 'wp_ajax_restorewp_upload', array( $this, 'ajax_upload' ) );
 		add_action( 'wp_ajax_restorewp_status', array( $this, 'ajax_status' ) );
+		add_action( 'wp_ajax_restorewp_cancel', array( $this, 'ajax_cancel' ) );
 		add_action( 'wp_ajax_restorewp_backup_list', array( $this, 'ajax_backup_list' ) );
 		add_action( 'wp_ajax_restorewp_backup_delete', array( $this, 'ajax_backup_delete' ) );
+		
+		// Background process hook
+		add_action( 'restorewp_background_process', array( 'RestoreWP_Background_Process', 'execute' ) );
 		
 		// Debug notice
 		add_action( 'admin_notices', array( $this, 'debug_notice' ) );
@@ -419,9 +423,13 @@ class RestoreWP_Admin {
 		}
 
 		try {
-			$export = new RestoreWP_Export();
-			$result = $export->start( $_POST );
-			wp_send_json_success( $result );
+			$background_process = new RestoreWP_Background_Process( 'export' );
+			$process_id = $background_process->start( $_POST );
+			
+			wp_send_json_success( array( 
+				'process_id' => $process_id,
+				'message' => __( 'Export started in background', 'restorewp' )
+			) );
 		} catch ( Exception $e ) {
 			wp_send_json_error( array( 'message' => $e->getMessage() ) );
 		}
@@ -440,11 +448,42 @@ class RestoreWP_Admin {
 		}
 
 		try {
-			$import = new RestoreWP_Import();
-			$result = $import->start( $_POST );
-			wp_send_json_success( $result );
+			$background_process = new RestoreWP_Background_Process( 'import' );
+			$process_id = $background_process->start( $_POST );
+			
+			wp_send_json_success( array( 
+				'process_id' => $process_id,
+				'message' => __( 'Import started in background', 'restorewp' )
+			) );
 		} catch ( Exception $e ) {
 			wp_send_json_error( array( 'message' => $e->getMessage() ) );
+		}
+	}
+
+	/**
+	 * AJAX cancel handler.
+	 */
+	public function ajax_cancel() {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( -1, 403 );
+		}
+
+		if ( ! wp_verify_nonce( $_POST['nonce'], RESTOREWP_NONCE_ACTION ) ) {
+			wp_die( -1, 403 );
+		}
+
+		$process_id = sanitize_text_field( $_POST['process_id'] ?? '' );
+		
+		if ( empty( $process_id ) ) {
+			wp_send_json_error( array( 'message' => __( 'Invalid process ID', 'restorewp' ) ) );
+		}
+
+		$cancelled = RestoreWP_Background_Process::cancel( $process_id );
+		
+		if ( $cancelled ) {
+			wp_send_json_success( array( 'message' => __( 'Process cancelled successfully', 'restorewp' ) ) );
+		} else {
+			wp_send_json_error( array( 'message' => __( 'Could not cancel process', 'restorewp' ) ) );
 		}
 	}
 
@@ -477,13 +516,35 @@ class RestoreWP_Admin {
 			wp_die( -1, 403 );
 		}
 
-		$secret_key = $_GET['secret_key'] ?? '';
-		if ( $secret_key !== get_option( RESTOREWP_SECRET_KEY_OPTION ) ) {
-			wp_die( -1, 403 );
-		}
+		// Handle new background process status requests
+		if ( isset( $_POST['process_id'] ) ) {
+			if ( ! wp_verify_nonce( $_POST['nonce'], RESTOREWP_NONCE_ACTION ) ) {
+				wp_die( -1, 403 );
+			}
 
-		$status = get_transient( 'restorewp_status_' . $secret_key );
-		wp_send_json_success( $status ?: array( 'status' => 'idle' ) );
+			$process_id = sanitize_text_field( $_POST['process_id'] );
+			
+			if ( empty( $process_id ) ) {
+				wp_send_json_error( array( 'message' => __( 'Invalid process ID', 'restorewp' ) ) );
+			}
+
+			$status = RestoreWP_Background_Process::get_status( $process_id );
+			
+			if ( $status ) {
+				wp_send_json_success( $status );
+			} else {
+				wp_send_json_error( array( 'message' => __( 'Process not found', 'restorewp' ) ) );
+			}
+		} else {
+			// Handle legacy status requests
+			$secret_key = $_GET['secret_key'] ?? '';
+			if ( $secret_key !== get_option( RESTOREWP_SECRET_KEY_OPTION ) ) {
+				wp_die( -1, 403 );
+			}
+
+			$status = get_transient( 'restorewp_status_' . $secret_key );
+			wp_send_json_success( $status ?: array( 'status' => 'idle' ) );
+		}
 	}
 
 	/**
