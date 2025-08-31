@@ -85,33 +85,51 @@ const ExportTab = ({ addNotice }) => {
 						<div className="restorewp-option-group">
 							<h4>{__('What to Export', 'restorewp')}</h4>
 							
-							<CheckboxControl
-								label={__('Database', 'restorewp')}
-								checked={exportOptions.include_database}
-								onChange={(value) => updateOption('include_database', value)}
-								help={__('Export all database tables and content', 'restorewp')}
-							/>
-							
-							<CheckboxControl
-								label={__('Media Files (Uploads)', 'restorewp')}
-								checked={exportOptions.include_uploads}
-								onChange={(value) => updateOption('include_uploads', value)}
-								help={__('Export all uploaded media files', 'restorewp')}
-							/>
-							
-							<CheckboxControl
-								label={__('Themes', 'restorewp')}
-								checked={exportOptions.include_themes}
-								onChange={(value) => updateOption('include_themes', value)}
-								help={__('Export all installed themes', 'restorewp')}
-							/>
-							
-							<CheckboxControl
-								label={__('Plugins', 'restorewp')}
-								checked={exportOptions.include_plugins}
-								onChange={(value) => updateOption('include_plugins', value)}
-								help={__('Export all installed plugins', 'restorewp')}
-							/>
+							<div className="restorewp-checkbox-list">
+								<div className="restorewp-checkbox-item">
+									<CheckboxControl
+										checked={exportOptions.include_database}
+										onChange={(value) => updateOption('include_database', value)}
+									/>
+									<label>
+										<strong>{__('Database', 'restorewp')}</strong>
+										<small>{__('Export all database tables and content', 'restorewp')}</small>
+									</label>
+								</div>
+								
+								<div className="restorewp-checkbox-item">
+									<CheckboxControl
+										checked={exportOptions.include_uploads}
+										onChange={(value) => updateOption('include_uploads', value)}
+									/>
+									<label>
+										<strong>{__('Media Files (Uploads)', 'restorewp')}</strong>
+										<small>{__('Export all uploaded media files', 'restorewp')}</small>
+									</label>
+								</div>
+								
+								<div className="restorewp-checkbox-item">
+									<CheckboxControl
+										checked={exportOptions.include_themes}
+										onChange={(value) => updateOption('include_themes', value)}
+									/>
+									<label>
+										<strong>{__('Themes', 'restorewp')}</strong>
+										<small>{__('Export all installed themes', 'restorewp')}</small>
+									</label>
+								</div>
+								
+								<div className="restorewp-checkbox-item">
+									<CheckboxControl
+										checked={exportOptions.include_plugins}
+										onChange={(value) => updateOption('include_plugins', value)}
+									/>
+									<label>
+										<strong>{__('Plugins', 'restorewp')}</strong>
+										<small>{__('Export all installed plugins', 'restorewp')}</small>
+									</label>
+								</div>
+							</div>
 						</div>
 					</div>
 
